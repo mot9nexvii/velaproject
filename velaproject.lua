@@ -1,365 +1,278 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
+local InsertService = game:GetService("InsertService")
 local UserInputService = game:GetService("UserInputService")
-
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local Camera = workspace.CurrentCamera
-
--- IDs аксессуаров и одежды
-local AvatarAssets = {
-    Accessories = {
-        1337018321,    -- Cute cat ears in black (сократил id для примера, подставь полные)
-        1874216566,    -- Black spiky messy boy hair
-        1026591578,    -- Black unkept emo vkei Anime Hairstyle
-        1110076652,    -- Emo anime boy hair messy black
-        1172021598,    -- Cute Sleepy Face
-    },
-    ShirtId = 1303253197, -- Classic Shirt
-    PantsId = 9159253447, -- Classic Pants
-}
-
--- Текущая тема меню: "Light" или "Dark"
-local CurrentTheme = "Light"
 
 -- Создаем ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "VelaGui"
+ScreenGui.Name = "VelaMenu"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = PlayerGui
+ScreenGui.Enabled = false -- по умолчанию скрыто
 
--- Основной фрейм меню
+-- Основной фрейм, центрируем, зеркалим по горизонтали
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 350, 0, 420)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-MainFrame.BackgroundTransparency = 0.1
+MainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.BackgroundTransparency = 0.65
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
+-- Зеркальное отражение по горизонтали
+MainFrame.Rotation = 180
+MainFrame.ScaleX = -1 -- Альтернативно можно использовать Scale в UIScale, но проще Rotation + ScaleX, но Roblox не поддерживает ScaleX напрямую
+-- Вместо этого используем LayoutOrder + отражение дочерних элементов ниже
+
+-- Добавим UICorner для скругления
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 16)
 UICorner.Parent = MainFrame
 
--- Заголовок
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 0, 50)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Vela Menu"
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 28
-TitleLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-TitleLabel.Parent = MainFrame
+-- Добавим размытие (если хочешь, можно активировать)
+--[[
+local blur = Instance.new("BlurEffect")
+blur.Size = 15
+blur.Parent = game.Lighting
+--]] 
 
--- Кнопка переключения страниц (Настройки/Главная)
-local ToggleSettingsBtn = Instance.new("TextButton")
-ToggleSettingsBtn.Size = UDim2.new(0, 120, 0, 40)
-ToggleSettingsBtn.Position = UDim2.new(1, -130, 0, 10)
-ToggleSettingsBtn.AnchorPoint = Vector2.new(1, 0)
-ToggleSettingsBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-ToggleSettingsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleSettingsBtn.Font = Enum.Font.Gotham
-ToggleSettingsBtn.TextSize = 18
-ToggleSettingsBtn.Text = "Настройки"
-ToggleSettingsBtn.Name = "ToggleSettingsBtn"
-ToggleSettingsBtn.Parent = MainFrame
+-- Вспомогательная функция для зеркального отражения элементов
+local function mirrorGuiElement(element)
+    -- Меняем AnchorPoint и Position для зеркальности
+    if element:IsA("GuiObject") then
+        local ap = element.AnchorPoint
+        local pos = element.Position
+        element.AnchorPoint = Vector2.new(1 - ap.X, ap.Y)
+        element.Position = UDim2.new(1 - pos.X.Scale, -pos.X.Offset, pos.Y.Scale, pos.Y.Offset)
+    end
+end
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 10)
-btnCorner.Parent = ToggleSettingsBtn
+-- Заголовок (название меню)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Vela Menu 😎"
+Title.TextColor3 = Color3.fromRGB(0, 0, 0)
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+mirrorGuiElement(Title)
 
--- Страницы
-local Pages = {}
+-- Кнопка загрузки аватара (по центру)
+local LoadButton = Instance.new("TextButton")
+LoadButton.Size = UDim2.new(0.7, 0, 0, 50)
+LoadButton.Position = UDim2.new(0.15, 0, 0.3, 0)
+LoadButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+LoadButton.BackgroundTransparency = 0.4
+LoadButton.Text = "Load Avatar"
+LoadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadButton.TextScaled = true
+LoadButton.Font = Enum.Font.GothamBold
+LoadButton.Parent = MainFrame
+local LoadButtonCorner = Instance.new("UICorner")
+LoadButtonCorner.CornerRadius = UDim.new(0, 12)
+LoadButtonCorner.Parent = LoadButton
+mirrorGuiElement(LoadButton)
 
--- Главная страница
-local MainPage = Instance.new("Frame")
-MainPage.Size = UDim2.new(1, 0, 1, -50)
-MainPage.Position = UDim2.new(0, 0, 0, 50)
-MainPage.BackgroundTransparency = 1
-MainPage.Parent = MainFrame
+-- Кнопка настроек (иконка ⚙️) сверху справа (зеркально слева)
+local SettingsToggle = Instance.new("TextButton")
+SettingsToggle.Size = UDim2.new(0, 40, 0, 40)
+SettingsToggle.Position = UDim2.new(0.02, 0, 0.02, 0)
+SettingsToggle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+SettingsToggle.BackgroundTransparency = 0.7
+SettingsToggle.Text = "⚙️"
+SettingsToggle.TextScaled = true
+SettingsToggle.Font = Enum.Font.GothamBold
+SettingsToggle.Parent = MainFrame
+local SettingsCorner = Instance.new("UICorner")
+SettingsCorner.CornerRadius = UDim.new(0, 10)
+SettingsCorner.Parent = SettingsToggle
+mirrorGuiElement(SettingsToggle)
 
--- Кнопка загрузки аватара
-local LoadAvatarBtn = Instance.new("TextButton")
-LoadAvatarBtn.Size = UDim2.new(0.8, 0, 0, 50)
-LoadAvatarBtn.Position = UDim2.new(0.1, 0, 0.3, 0)
-LoadAvatarBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-LoadAvatarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoadAvatarBtn.Font = Enum.Font.GothamBold
-LoadAvatarBtn.TextSize = 20
-LoadAvatarBtn.Text = "Загрузить аватар"
-LoadAvatarBtn.Parent = MainPage
+-- Настройки - отдельный фрейм
+local SettingsFrame = Instance.new("Frame")
+SettingsFrame.Size = UDim2.new(1, -20, 1, -70)
+SettingsFrame.Position = UDim2.new(0, 10, 0, 60)
+SettingsFrame.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+SettingsFrame.BackgroundTransparency = 0.75
+SettingsFrame.Visible = false
+SettingsFrame.Parent = MainFrame
+local SettingsCorner2 = Instance.new("UICorner")
+SettingsCorner2.CornerRadius = UDim.new(0, 14)
+SettingsCorner2.Parent = SettingsFrame
+mirrorGuiElement(SettingsFrame)
 
-local loadBtnCorner = Instance.new("UICorner")
-loadBtnCorner.CornerRadius = UDim.new(0, 12)
-loadBtnCorner.Parent = LoadAvatarBtn
+-- Надпись "Settings"
+local SettingsTitle = Instance.new("TextLabel")
+SettingsTitle.Size = UDim2.new(1, 0, 0, 40)
+SettingsTitle.Position = UDim2.new(0, 0, 0, 0)
+SettingsTitle.BackgroundTransparency = 1
+SettingsTitle.Text = "Settings"
+SettingsTitle.TextColor3 = Color3.fromRGB(0, 0, 0)
+SettingsTitle.TextScaled = true
+SettingsTitle.Font = Enum.Font.GothamBold
+SettingsTitle.Parent = SettingsFrame
+mirrorGuiElement(SettingsTitle)
 
--- Страница Настроек
-local SettingsPage = Instance.new("Frame")
-SettingsPage.Size = UDim2.new(1, 0, 1, -50)
-SettingsPage.Position = UDim2.new(0, 0, 0, 50)
-SettingsPage.BackgroundTransparency = 1
-SettingsPage.Visible = false
-SettingsPage.Parent = MainFrame
+-- Ползунок для FOV (от 60 до 120)
+local FOVLabel = Instance.new("TextLabel")
+FOVLabel.Size = UDim2.new(1, 0, 0, 30)
+FOVLabel.Position = UDim2.new(0, 10, 0, 50)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Text = "Camera FOV: 70"
+FOVLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+FOVLabel.TextScaled = false
+FOVLabel.Font = Enum.Font.Gotham
+FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
+FOVLabel.Parent = SettingsFrame
+mirrorGuiElement(FOVLabel)
 
--- FoV Текст
-local FoVLabel = Instance.new("TextLabel")
-FoVLabel.Size = UDim2.new(0.6, 0, 0, 30)
-FoVLabel.Position = UDim2.new(0.05, 0, 0.1, 0)
-FoVLabel.BackgroundTransparency = 1
-FoVLabel.Font = Enum.Font.Gotham
-FoVLabel.TextSize = 18
-FoVLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-FoVLabel.Text = "Камера FoV:"
-FoVLabel.TextXAlignment = Enum.TextXAlignment.Left
-FoVLabel.Parent = SettingsPage
+local FOVSlider = Instance.new("Frame")
+FOVSlider.Size = UDim2.new(0.8, 0, 0, 20)
+FOVSlider.Position = UDim2.new(0.1, 0, 0, 90)
+FOVSlider.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+FOVSlider.BackgroundTransparency = 0.6
+FOVSlider.Parent = SettingsFrame
+local FOVSliderCorner = Instance.new("UICorner")
+FOVSliderCorner.CornerRadius = UDim.new(0, 10)
+FOVSliderCorner.Parent = FOVSlider
+mirrorGuiElement(FOVSlider)
 
--- FoV Slider Frame
-local FoVSliderFrame = Instance.new("Frame")
-FoVSliderFrame.Size = UDim2.new(0.8, 0, 0, 40)
-FoVSliderFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
-FoVSliderFrame.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
-FoVSliderFrame.BorderSizePixel = 0
-FoVSliderFrame.Parent = SettingsPage
+local SliderKnob = Instance.new("Frame")
+SliderKnob.Size = UDim2.new(0, 20, 1, 0)
+SliderKnob.Position = UDim2.new(0.25, 0, 0, 0)
+SliderKnob.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+SliderKnob.Parent = FOVSlider
+local SliderKnobCorner = Instance.new("UICorner")
+SliderKnobCorner.CornerRadius = UDim.new(0, 10)
+SliderKnobCorner.Parent = SliderKnob
+mirrorGuiElement(SliderKnob)
 
-local sliderCorner = Instance.new("UICorner")
-sliderCorner.CornerRadius = UDim.new(0, 12)
-sliderCorner.Parent = FoVSliderFrame
-
--- Slider draggable part
-local FoVSlider = Instance.new("Frame")
-FoVSlider.Size = UDim2.new(0, 50, 1, 0)
-FoVSlider.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-FoVSlider.BorderSizePixel = 0
-FoVSlider.Position = UDim2.new(0, 0, 0, 0)
-FoVSlider.Parent = FoVSliderFrame
-
-local sliderHandle = Instance.new("UICorner")
-sliderHandle.CornerRadius = UDim.new(0, 12)
-sliderHandle.Parent = FoVSlider
-
--- FoV Value Label
-local FoVValueLabel = Instance.new("TextLabel")
-FoVValueLabel.Size = UDim2.new(0.15, 0, 0, 30)
-FoVValueLabel.Position = UDim2.new(0.85, 0, 0.1, 0)
-FoVValueLabel.BackgroundTransparency = 1
-FoVValueLabel.Font = Enum.Font.GothamBold
-FoVValueLabel.TextSize = 18
-FoVValueLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-FoVValueLabel.Text = tostring(math.floor(Camera.FieldOfView))
-FoVValueLabel.Parent = SettingsPage
-
--- Тема меню текст
-local ThemeLabel = Instance.new("TextLabel")
-ThemeLabel.Size = UDim2.new(0.6, 0, 0, 30)
-ThemeLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
-ThemeLabel.BackgroundTransparency = 1
-ThemeLabel.Font = Enum.Font.Gotham
-ThemeLabel.TextSize = 18
-ThemeLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-ThemeLabel.Text = "Тема меню:"
-ThemeLabel.TextXAlignment = Enum.TextXAlignment.Left
-ThemeLabel.Parent = SettingsPage
-
--- Тема переключатель
-local ThemeToggleBtn = Instance.new("TextButton")
-ThemeToggleBtn.Size = UDim2.new(0.4, 0, 0, 40)
-ThemeToggleBtn.Position = UDim2.new(0.55, 0, 0.48, 0)
-ThemeToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-ThemeToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ThemeToggleBtn.Font = Enum.Font.GothamBold
-ThemeToggleBtn.TextSize = 18
-ThemeToggleBtn.Text = "Светлая"
-ThemeToggleBtn.Parent = SettingsPage
-
-local themeBtnCorner = Instance.new("UICorner")
-themeBtnCorner.CornerRadius = UDim.new(0, 12)
-themeBtnCorner.Parent = ThemeToggleBtn
-
--- Служебные переменные для слайдера
 local dragging = false
-local dragStartX = 0
-local sliderStartPos = 0
 
--- Функция обновления темы меню
-local function UpdateTheme(theme)
-    CurrentTheme = theme
-    if theme == "Light" then
-        MainFrame.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-        TitleLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-        FoVLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-        FoVValueLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-        ThemeLabel.TextColor3 = Color3.fromRGB(30, 30, 30)
-        ThemeToggleBtn.Text = "Светлая"
-        ThemeToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        ToggleSettingsBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        ToggleSettingsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        LoadAvatarBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        LoadAvatarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    else
-        MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        FoVLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        FoVValueLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        ThemeLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        ThemeToggleBtn.Text = "Тёмная"
-        ThemeToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-        ToggleSettingsBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-        ToggleSettingsBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-        LoadAvatarBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-        LoadAvatarBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-    end
-end
-
--- Установка начальной темы
-UpdateTheme(CurrentTheme)
-
--- Обработчик переключения темы
-ThemeToggleBtn.MouseButton1Click:Connect(function()
-    if CurrentTheme == "Light" then
-        UpdateTheme("Dark")
-    else
-        UpdateTheme("Light")
-    end
-end)
-
--- Обработчик переключения страниц
-local showingSettings = false
-ToggleSettingsBtn.MouseButton1Click:Connect(function()
-    showingSettings = not showingSettings
-    if showingSettings then
-        MainPage.Visible = false
-        SettingsPage.Visible = true
-        ToggleSettingsBtn.Text = "Главная"
-    else
-        MainPage.Visible = true
-        SettingsPage.Visible = false
-        ToggleSettingsBtn.Text = "Настройки"
-    end
-end)
-
--- Функция плавного появления меню
-local function ShowMenu()
-    ScreenGui.Enabled = true
-    MainFrame.Position = UDim2.new(0.5, -160, 0.5, -250)
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -160, 0.5, -200)})
-    tween:Play()
-end
-
--- Функция плавного скрытия меню
-local function HideMenu()
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -160, 0.5, -250)})
-    tween:Play()
-    tween.Completed:Wait()
-    ScreenGui.Enabled = false
-end
-
-ScreenGui.Enabled = false
-
--- Переключение меню по нажатию K
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.K then
-        if ScreenGui.Enabled then
-            HideMenu()
-        else
-            ShowMenu()
-        end
-    end
-end)
-
--- Обработчики для слайдера FoV
-FoVSliderFrame.InputBegan:Connect(function(input)
+SliderKnob.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
-        dragStartX = input.Position.X
-        sliderStartPos = FoVSlider.Size.X.Offset
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position.X - dragStartX
-        local newPos = math.clamp(sliderStartPos + delta, 0, FoVSliderFrame.AbsoluteSize.X)
-        FoVSlider.Size = UDim2.new(0, newPos, 1, 0)
-        local ratio = newPos / FoVSliderFrame.AbsoluteSize.X
-        local newFoV = math.floor(60 + ratio * (120 - 60))
-        Camera.FieldOfView = newFoV
-        FoVValueLabel.Text = tostring(newFoV)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
+SliderKnob.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
 end)
 
--- Функция загрузки аватара
-local function LoadAvatar()
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then
-        warn("Humanoid не найден.")
-        return
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local sliderAbsPos = FOVSlider.AbsolutePosition.X
+        local sliderAbsSize = FOVSlider.AbsoluteSize.X
+        local mouseX = input.Position.X
+        local relativeX = math.clamp(mouseX - sliderAbsPos, 0, sliderAbsSize)
+        local scale = relativeX / sliderAbsSize
+        SliderKnob.Position = UDim2.new(scale, 0, 0, 0)
+        local newFOV = math.floor(60 + scale * 60)
+        FOVLabel.Text = "Camera FOV: "..newFOV
+        workspace.CurrentCamera.FieldOfView = newFOV
     end
-    
-    -- Удаляем старые аксессуары
+end)
+
+-- Функция для анимации появления меню
+local function tweenMenu(show)
+    ScreenGui.Enabled = true
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if show then
+        MainFrame.Position = UDim2.new(0.5, 0, 0.5, 50)
+        MainFrame.BackgroundTransparency = 1
+        local tweenPos = TweenService:Create(MainFrame, tweenInfo, {Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 0.65})
+        tweenPos:Play()
+        tweenPos.Completed:Wait()
+    else
+        local tweenPos = TweenService:Create(MainFrame, tweenInfo, {Position = UDim2.new(0.5, 0, 0.5, 50), BackgroundTransparency = 1})
+        tweenPos:Play()
+        tweenPos.Completed:Wait()
+        ScreenGui.Enabled = false
+    end
+end
+
+local menuVisible = false
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.K then
+        menuVisible = not menuVisible
+        tweenMenu(menuVisible)
+    end
+end)
+
+-- Переключение между главной страницей и настройками
+local onSettings = false
+
+SettingsToggle.MouseButton1Click:Connect(function()
+    onSettings = not onSettings
+    SettingsFrame.Visible = onSettings
+    LoadButton.Visible = not onSettings
+end)
+
+-- Аксессуары и одежда, которые подгружаем
+local accessories = {
+    {id = 1337018321, type = Enum.AccessoryType.Hat}, -- Cute cat ears in black (Hat)
+    {id = 1303253197, type = "Shirt"}, -- Classic Shirt
+    {id = 915925344, type = "Pants"}, -- Pants
+    {id = 187421656, type = Enum.AccessoryType.Hair}, -- Black spiky messy boy hair (Hair)
+    {id = 102659157, type = Enum.AccessoryType.Hair}, -- Black unkept emo vkei Anime Hairstyle (Hair)
+    {id = 111007665, type = Enum.AccessoryType.Hair}, -- Emo anime boy hair messy black (Hair)
+    {id = 11720215, type = Enum.AccessoryType.Face}, -- Cute sleepy face (Face)
+}
+
+-- Функция для очистки текущего персонажа от аксессуаров и одежды
+local function clearCharacter()
+    local character = LocalPlayer.Character
+    if not character then return end
     for _, item in pairs(character:GetChildren()) do
         if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") then
             item:Destroy()
         end
     end
-    
-    -- Добавляем аксессуары по ID
-    for _, assetId in pairs(AvatarAssets.Accessories) do
-        local success, asset = pcall(function()
-            return game:GetService("InsertService"):LoadAsset(assetId)
-        end)
-        if success and asset then
-            local acc = asset:FindFirstChildWhichIsA("Accessory")
-            if acc then
-                acc.Parent = character
-            end
-            asset:Destroy()
-        else
-            warn("Не удалось загрузить аксессуар: "..tostring(assetId))
-        end
-    end
-    
-    -- Добавляем одежду
-    local shirt = Instance.new("Shirt")
-    shirt.ShirtTemplate = "rbxassetid://"..tostring(AvatarAssets.ShirtId)
-    shirt.Parent = character
-
-    local pants = Instance.new("Pants")
-    pants.PantsTemplate = "rbxassetid://"..tostring(AvatarAssets.PantsId)
-    pants.Parent = character
-    
-    -- Обновление Humanoid Description
-    local success, description = pcall(function()
-        return Players:GetHumanoidDescriptionFromUserId(LocalPlayer.UserId)
-    end)
-    if success and description then
-        -- Можно здесь добавить кастомизацию если нужно
-    end
 end
 
-LoadAvatarBtn.MouseButton1Click:Connect(function()
-    LoadAvatar()
-    -- Отправляем сообщение в чат (ServerMessage)
-    local msg = Instance.new("Message", workspace)
-    msg.Text = "[Vela] Аватар успешно загружен!"
-    delay(3, function()
-        msg:Destroy()
-    end)
-end)
+-- Функция для подгрузки аксессуаров и одежды
+local function loadAvatar()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    clearCharacter()
 
--- Уведомление о загрузке скрипта сразу при запуске
-local msg = Instance.new("Message", workspace)
-msg.Text = "[Vela] Скрипт успешно загружен! Нажмите 'K' для открытия меню."
-delay(4, function()
-    msg:Destroy()
-end)
+    for _, item in pairs(accessories) do
+        if item.type == "Shirt" then
+            local shirt = Instance.new("Shirt")
+            shirt.ShirtTemplate = "rbxassetid://"..item.id
+            shirt.Parent = character
+        elseif item.type == "Pants" then
+            local pants = Instance.new("Pants")
+            pants.PantsTemplate = "rbxassetid://"..item.id
+            pants.Parent = character
+        else
+            -- аксессуары через InsertService
+            local success, accessory = pcall(function()
+                return InsertService:LoadAsset(item.id)
+            end)
+            if success and accessory then
+                local acc = accessory:GetChildren()[1]
+                if acc and acc:IsA("Accessory") then
+                    acc.Parent = character
+                end
+            end
+        end
+    end
+
+    StarterGui:SetCore("SendNotification", {
+        Title = "Vela",
+        Text = "Аватар успешно загружен!",
+        Duration = 3
+    })
+end
+
+LoadButton.MouseButton1Click:Connect(loadAvatar)
